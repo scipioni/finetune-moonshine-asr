@@ -37,8 +37,6 @@ training:
   bf16: true                       # BF16 more stable than FP16 on ROCm/AMD
   fp16_full_eval: false
   bf16_full_eval: true
-  group_by_length: true
-  length_column_name: "input_length"
   max_grad_norm: 1.0
 
   max_steps: 8000

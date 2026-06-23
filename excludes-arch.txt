@@ -12,6 +12,7 @@
 torch
 torchvision
 torchaudio
+torchcodec
 triton
 numpy
 pandas

@@ -540,10 +540,6 @@ def main():
         max_steps=max_steps,
         label_smoothing_factor=phase.label_smoothing,
 
-        # Length bucketing (paper recommendation: groups similar-length audio)
-        group_by_length=train_config['group_by_length'],
-        length_column_name=train_config['length_column_name'],
-
         # Memory optimization
         gradient_checkpointing=train_config['gradient_checkpointing'],
         fp16=train_config['fp16'],

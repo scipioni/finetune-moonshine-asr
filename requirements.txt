@@ -1,7 +1,7 @@
 # Core dependencies for Moonshine fine-tuning
 torch>=2.0.0
 transformers>=4.35.0
-datasets>=2.14.0
+datasets>=2.14.0,<4.0.0  # datasets 4.x+ requires torchcodec (CUDA-only); soundfile backend removed
 accelerate>=0.24.0
 
 # Training & Evaluation

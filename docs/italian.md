@@ -145,6 +145,97 @@ task export-it
 # model saved to deploy/moonshine-it/
 ```
 
+## Using the model with moonshine-ai/moonshine
+
+The [moonshine-ai/moonshine](https://github.com/moonshine-ai/moonshine) library provides a
+lightweight runtime for on-device inference with streaming, VAD, word-level timestamps, and
+speaker diarization. It uses the OnnxRuntime `.ort` flatbuffer format rather than plain `.onnx`.
+
+### 1. Install
+
+```bash
+uv pip install moonshine-voice
+```
+
+### 2. Convert ONNX → ORT
+
+After `task export-it` the model is at `deploy/moonshine-it/`. Convert each `.onnx` file to the
+`.ort` format that `moonshine-voice` expects:
+
+```bash
+python -m onnxruntime.tools.convert_onnx_models_to_ort deploy/moonshine-it/encoder_model.onnx
+python -m onnxruntime.tools.convert_onnx_models_to_ort deploy/moonshine-it/decoder_model_merged.onnx
+```
+
+This produces `encoder_model.ort` and `decoder_model_merged.ort` in the same directory.
+Copy the tokenizer from an official moonshine model download (the tokenizer is unchanged by
+fine-tuning):
+
+```bash
+python -m moonshine_voice.download --language en   # downloads to cache
+# copy tokenizer.bin from the cached path printed above into deploy/moonshine-it/
+```
+
+### 3. Batch transcription
+
+```python
+from moonshine_voice import Transcriber, ModelArch
+
+transcriber = Transcriber(
+    model_path="deploy/moonshine-it",
+    model_arch=ModelArch.TINY,
+    options={"max_tokens_per_second": "13.0"},  # recommended for non-Latin scripts
+)
+
+import soundfile as sf
+audio, sr = sf.read("audio.wav", dtype="float32")
+
+transcript = transcriber.transcribe_without_streaming(audio, sr)
+for line in transcript.lines:
+    print(line.text)
+```
+
+### 4. Streaming transcription
+
+```python
+from moonshine_voice import Transcriber, ModelArch, TranscriptEventListener
+
+class Listener(TranscriptEventListener):
+    def on_line_completed(self, event):
+        print(event.line.text)
+
+transcriber = Transcriber(
+    model_path="deploy/moonshine-it",
+    model_arch=ModelArch.TINY,
+    update_interval=0.5,
+)
+transcriber.add_listener(Listener())
+transcriber.start()
+
+# feed audio chunks from a microphone or file
+import sounddevice as sd
+with sd.InputStream(samplerate=16000, channels=1, dtype="float32") as stream:
+    while True:
+        chunk, _ = stream.read(1600)   # 0.1 s at 16 kHz
+        transcriber.add_audio(chunk.flatten(), 16000)
+```
+
+Call `transcriber.stop()` to flush the final segment.
+
+### 5. Word-level timestamps
+
+```python
+transcriber = Transcriber(
+    model_path="deploy/moonshine-it",
+    model_arch=ModelArch.TINY,
+    options={"word_timestamps": "true"},
+)
+transcript = transcriber.transcribe_without_streaming(audio, sr)
+for line in transcript.lines:
+    for word in line.words:
+        print(f"[{word.start:.2f}s – {word.end:.2f}s]  {word.word}")
+```
+
 ## Cleanup
 
 ```bash

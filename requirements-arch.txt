@@ -11,7 +11,7 @@
 
 # Training & Evaluation
 transformers>=4.35.0
-datasets>=2.14.0
+datasets>=2.14.0,<4.0.0  # datasets 4.x+ requires torchcodec (CUDA-only); soundfile backend removed
 accelerate>=0.24.0
 evaluate>=0.4.0
 jiwer>=3.0.0
@@ -20,6 +20,7 @@ schedulefree>=1.4.0
 
 # Audio processing (soundfile and numpy come from system)
 librosa>=0.10.0
+# torchcodec excluded: PyPI wheel links against libnvrtc (CUDA-only), not available on ROCm
 
 # Data handling
 pyyaml>=6.0
