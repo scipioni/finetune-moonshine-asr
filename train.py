@@ -96,7 +96,7 @@ Examples:
     parser.add_argument(
         '--test-mode',
         action='store_true',
-        help='Test mode: use only 100 samples for quick validation'
+        help='Test mode: use only 500 samples for quick validation'
     )
 
     return parser.parse_args()
@@ -338,6 +338,11 @@ def main():
         print("\n[WARNING] TEST MODE: Using only 500 samples per split")
         dataset_dict['train'] = dataset_dict['train'].select(range(min(500, len(dataset_dict['train']))))
         dataset_dict['test'] = dataset_dict['test'].select(range(min(500, len(dataset_dict['test']))))
+        # Cap at 2 epochs worth of steps so test mode actually terminates quickly
+        if args.max_steps is None:
+            batch_size = config['training']['per_device_train_batch_size']
+            args.max_steps = max(50, (500 // batch_size) * 2)
+            print(f"[WARNING] TEST MODE: Overriding max_steps to {args.max_steps}")
 
     # Filter by global duration constraints (remove very short/long)
     print(f"\n{'='*60}")
