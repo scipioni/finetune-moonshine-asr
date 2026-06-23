@@ -338,11 +338,6 @@ def main():
         print("\n[WARNING] TEST MODE: Using only 500 samples per split")
         dataset_dict['train'] = dataset_dict['train'].select(range(min(500, len(dataset_dict['train']))))
         dataset_dict['test'] = dataset_dict['test'].select(range(min(500, len(dataset_dict['test']))))
-        # Cap at 2 epochs worth of steps so test mode actually terminates quickly
-        if args.max_steps is None:
-            batch_size = config['training']['per_device_train_batch_size']
-            args.max_steps = max(50, (500 // batch_size) * 2)
-            print(f"[WARNING] TEST MODE: Overriding max_steps to {args.max_steps}")
 
     # Filter by global duration constraints (remove very short/long)
     print(f"\n{'='*60}")
@@ -527,6 +522,10 @@ def main():
 
     # Override with phase-specific and CLI args
     max_steps = args.max_steps or phase.max_steps
+    if args.test_mode:
+        test_max = max(50, (500 // train_config['per_device_train_batch_size']) * 2)
+        max_steps = min(max_steps, test_max)
+        print(f"[WARNING] TEST MODE: Capping max_steps to {max_steps}")
     learning_rate = phase.learning_rate
 
     training_args = Seq2SeqTrainingArguments(
