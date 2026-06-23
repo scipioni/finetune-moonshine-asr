@@ -496,6 +496,14 @@ def main():
     # Patch LayerNorm for ROCm stability before any other model modification
     patch_layer_norms_for_rocm(model)
 
+    # torch.compile fuses element-wise ops (including the ROCm LayerNorm fallback)
+    # back into efficient kernels and reduces memory round-trips. Inductor backend
+    # works on both ROCm and NVIDIA. Adds ~60s one-time compilation cost.
+    if config.get('training', {}).get('torch_compile', False):
+        print("\n[OK] Compiling model with torch.compile (Inductor)...")
+        model = torch.compile(model)
+        print("[OK] Compilation scheduled (JIT — first step will be slower)")
+
     # Freeze encoder if specified
     if config['model'].get('freeze_encoder', False):
         print("\n[WARNING] Freezing encoder weights (decoder-only training)")

@@ -32,13 +32,14 @@ training:
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 16  # Effective batch size = 4 * 16 = 64
   gradient_checkpointing: true
-  fp16: false
+  fp16: true   # FP16 halves memory traffic — set false if NaN loss reappears
   bf16: false  # Set true on NVIDIA Ampere+ (RTX 3000+) or AMD discrete GPU with native BF16
-  fp16_full_eval: false
+  fp16_full_eval: true
   bf16_full_eval: false
   max_grad_norm: 1.0
 
   max_steps: 8000
+  torch_compile: false  # Set true to fuse ops via Inductor — ~20-40% faster after JIT warmup
 
   optim: "schedule_free_adamw"
   learning_rate: 3.0e-4
