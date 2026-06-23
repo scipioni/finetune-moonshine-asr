@@ -1,5 +1,5 @@
 # Configuration for fine-tuning Moonshine on MLS French (no curriculum learning)
-# Dataset: 60,563 train / 3,188 val samples
+# Dataset: facebook/multilingual_librispeech - french
 # Duration range: 4-20s (mean 7.22s, median 6.98s)
 
 model:
@@ -7,8 +7,10 @@ model:
   freeze_encoder: false
 
 dataset:
-  type: "local"
-  path: "./data/mls_french_split"
+  type: "mls"
+  language: "french"
+  split_train: "train"
+  split_test: "test"
 
 audio:
   sampling_rate: 16000
@@ -32,8 +34,10 @@ training:
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 16  # Effective batch size = 4 * 16 = 64
   gradient_checkpointing: true     # Reduces VRAM usage
-  fp16: true                       # Mixed precision for memory efficiency
-  fp16_full_eval: true
+  fp16: false
+  bf16: true                       # BF16 more stable than FP16 on ROCm/AMD
+  fp16_full_eval: false
+  bf16_full_eval: true
   group_by_length: true            # Efficient batching by duration
   length_column_name: "input_length"
   max_grad_norm: 1.0

@@ -1,0 +1,200 @@
+version: "3"
+
+vars:
+  # French
+  FR_CONFIG: configs/mls_french_no_curriculum.yaml
+  FR_OUTPUT: results-moonshine-fr-no-curriculum
+  FR_DATA: data/mls_french_split
+
+  # Italian
+  IT_CONFIG: configs/mls_italian_no_curriculum.yaml
+  IT_OUTPUT: results-moonshine-it-no-curriculum
+  IT_DATA: data/mls_italian_split
+
+tasks:
+
+  # ─────────────────────────────────────────────
+  # Setup
+  # ─────────────────────────────────────────────
+
+  install:
+    desc: Install core dependencies (standard, pip-managed torch)
+    cmds:
+      - uv pip install -r requirements.txt
+
+  install-arch:
+    desc: Install dependencies for Arch Linux using system PyTorch (ROCm)
+    cmds:
+      - |
+        echo ""
+        echo "=== Arch Linux / ROCm setup ==="
+        echo "The following packages must be installed from pacman/AUR first:"
+        echo "  sudo pacman -S python-pytorch-opt-rocm python-torchvision python-numpy python-pandas python-soundfile"
+        echo "  yay -S python-torchaudio"
+        echo ""
+        echo "Then create the venv with system site-packages:"
+        echo "  uv venv --system-site-packages --python /usr/bin/python .venv"
+        echo "  source .venv/bin/activate"
+        echo "================================"
+        echo ""
+      - uv pip install --excludes excludes-arch.txt -r requirements-arch.txt
+
+  install-live:
+    desc: Install live transcription dependencies
+    cmds:
+      - uv pip install -r requirements-live.txt
+
+  install-all:
+    desc: Install all dependencies (standard setup)
+    deps: [install, install-live]
+
+  # ─────────────────────────────────────────────
+  # Data preparation
+  # ─────────────────────────────────────────────
+
+  download-fr:
+    desc: Download and save MLS French dataset locally
+    cmds:
+      - python scripts/download_mls.py --language french --output {{.FR_DATA}}
+
+  download-it:
+    desc: Download and save MLS Italian dataset locally
+    cmds:
+      - python scripts/download_mls.py --language italian --output {{.IT_DATA}}
+
+  download-all:
+    desc: Download both French and Italian datasets
+    cmds:
+      - task: download-fr
+      - task: download-it
+
+  # ─────────────────────────────────────────────
+  # Training
+  # ─────────────────────────────────────────────
+
+  train-fr:
+    desc: Fine-tune Moonshine on French (MLS, no curriculum)
+    cmds:
+      - python train.py --config {{.FR_CONFIG}} --no-curriculum
+
+  train-it:
+    desc: Fine-tune Moonshine on Italian (MLS, no curriculum)
+    cmds:
+      - python train.py --config {{.IT_CONFIG}} --no-curriculum
+
+  train-all:
+    desc: Train both French and Italian models sequentially
+    cmds:
+      - task: train-fr
+      - task: train-it
+
+  train-fr-test:
+    desc: Quick test run for French (500 samples, fast validation)
+    cmds:
+      - python train.py --config {{.FR_CONFIG}} --no-curriculum --test-mode
+
+  train-it-test:
+    desc: Quick test run for Italian (500 samples, fast validation)
+    cmds:
+      - python train.py --config {{.IT_CONFIG}} --no-curriculum --test-mode
+
+  train-fr-curriculum:
+    desc: French full curriculum training (3 phases)
+    cmds:
+      - python train.py --config {{.FR_CONFIG}} --phase 1
+      - python train.py --config {{.FR_CONFIG}} --phase 2 --resume ./{{.FR_OUTPUT}}-phase1
+      - python train.py --config {{.FR_CONFIG}} --phase 3 --resume ./{{.FR_OUTPUT}}-phase2
+
+  train-it-curriculum:
+    desc: Italian full curriculum training (3 phases)
+    cmds:
+      - python train.py --config {{.IT_CONFIG}} --phase 1
+      - python train.py --config {{.IT_CONFIG}} --phase 2 --resume ./{{.IT_OUTPUT}}-phase1
+      - python train.py --config {{.IT_CONFIG}} --phase 3 --resume ./{{.IT_OUTPUT}}-phase2
+
+  # ─────────────────────────────────────────────
+  # Evaluation
+  # ─────────────────────────────────────────────
+
+  eval-fr:
+    desc: Evaluate French model on MLS test set
+    cmds:
+      - >-
+        python scripts/evaluate.py
+        --model ./{{.FR_OUTPUT}}
+        --dataset facebook/multilingual_librispeech
+        --split test
+        --text-column sentence
+        --output ./eval-results-fr.json
+        --save-predictions
+
+  eval-it:
+    desc: Evaluate Italian model on MLS test set
+    cmds:
+      - >-
+        python scripts/evaluate.py
+        --model ./{{.IT_OUTPUT}}
+        --dataset facebook/multilingual_librispeech
+        --split test
+        --text-column sentence
+        --output ./eval-results-it.json
+        --save-predictions
+
+  eval-all:
+    desc: Evaluate both French and Italian models
+    cmds:
+      - task: eval-fr
+      - task: eval-it
+
+  # ─────────────────────────────────────────────
+  # Inference
+  # ─────────────────────────────────────────────
+
+  infer-fr:
+    desc: "Run inference with French model. Usage: task infer-fr FILE=audio.wav"
+    cmds:
+      - python scripts/inference.py --model ./{{.FR_OUTPUT}} --audio {{.FILE}}
+
+  infer-it:
+    desc: "Run inference with Italian model. Usage: task infer-it FILE=audio.wav"
+    cmds:
+      - python scripts/inference.py --model ./{{.IT_OUTPUT}} --audio {{.FILE}}
+
+  # ─────────────────────────────────────────────
+  # ONNX export
+  # ─────────────────────────────────────────────
+
+  export-fr:
+    desc: Export French model to ONNX for deployment
+    cmds:
+      - python scripts/convert_for_deployment.py --model ./{{.FR_OUTPUT}} --output ./deploy/moonshine-fr
+
+  export-it:
+    desc: Export Italian model to ONNX for deployment
+    cmds:
+      - python scripts/convert_for_deployment.py --model ./{{.IT_OUTPUT}} --output ./deploy/moonshine-it
+
+  # ─────────────────────────────────────────────
+  # Utilities
+  # ─────────────────────────────────────────────
+
+  clean-fr:
+    desc: Remove French training outputs and logs
+    cmds:
+      - rm -rf ./{{.FR_OUTPUT}} ./{{.FR_OUTPUT}}_encoded ./logs/moonshine-fr-no-curriculum ./eval-results-fr.json
+
+  clean-it:
+    desc: Remove Italian training outputs and logs
+    cmds:
+      - rm -rf ./{{.IT_OUTPUT}} ./{{.IT_OUTPUT}}_encoded ./logs/moonshine-it-no-curriculum ./eval-results-it.json
+
+  clean-all:
+    desc: Remove all training outputs and logs
+    cmds:
+      - task: clean-fr
+      - task: clean-it
+
+  clean-data:
+    desc: Remove downloaded datasets (keeps model results)
+    cmds:
+      - rm -rf ./{{.FR_DATA}} ./{{.IT_DATA}}

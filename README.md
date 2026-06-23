@@ -150,6 +150,9 @@ python scripts/inference.py --model Cornebidouil/moonshine-tiny-fr --live
 - [Training Guide](docs/TRAINING_GUIDE.md) - Step-by-step training tutorial
 - [Dataset Preparation](docs/DATASET_PREPARATION.md) - Prepare your audio data
 
+### Language Guides
+- [Italian](docs/italian.md) - Fine-tuning on MLS Italian, including ROCm/AMD setup
+
 ### Advanced Features
 - [Inference Guide](docs/INFERENCE_GUIDE.md) - Single file, batch, and live inference
 - [Live Transcription](docs/LIVE_MODE_GUIDE.md) - Real-time transcription with VAD

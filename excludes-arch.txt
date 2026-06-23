@@ -1,0 +1,18 @@
+# Packages provided by system pacman/AUR packages — excluded from uv resolution.
+# These are satisfied by the system site-packages in the venv and must NOT be
+# reinstalled from PyPI (the PyPI torch wheels pull CUDA/nvidia dependencies).
+#
+# System packages:
+#   python-pytorch-opt-rocm  -> torch
+#   python-torchvision       -> torchvision
+#   python-torchaudio        -> torchaudio  (AUR)
+#   python-numpy             -> numpy
+#   python-pandas            -> pandas
+#   python-soundfile         -> soundfile
+torch
+torchvision
+torchaudio
+triton
+numpy
+pandas
+soundfile

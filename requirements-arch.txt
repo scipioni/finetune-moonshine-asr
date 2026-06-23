@@ -1,0 +1,36 @@
+# Requirements for Arch Linux with system PyTorch (ROCm)
+#
+# The following packages must be installed from pacman/AUR BEFORE activating the venv:
+#   sudo pacman -S python-pytorch-opt-rocm python-torchvision python-numpy python-pandas python-soundfile
+#   yay -S python-torchaudio  (must match pytorch version)
+#
+# Then create the venv with system site-packages:
+#   uv venv --system-site-packages --python /usr/bin/python .venv
+#   source .venv/bin/activate
+#   uv pip install --excludes excludes-arch.txt -r requirements-arch.txt
+
+# Training & Evaluation
+transformers>=4.35.0
+datasets>=2.14.0
+accelerate>=0.24.0
+evaluate>=0.4.0
+jiwer>=3.0.0
+tensorboard>=2.14.0
+schedulefree>=1.4.0
+
+# Audio processing (soundfile and numpy come from system)
+librosa>=0.10.0
+
+# Data handling
+pyyaml>=6.0
+tqdm>=4.66.0
+
+# Optional: ONNX export and deployment
+onnx>=1.14.0
+onnxruntime>=1.16.0
+optimum>=1.14.0
+
+# Development
+pytest>=7.0
+black>=23.0
+isort>=5.12
