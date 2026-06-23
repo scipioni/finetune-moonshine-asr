@@ -1,8 +1,5 @@
 version: "3"
 
-env:
-  TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
-
 vars:
   # French
   FR_CONFIG: configs/mls_french_no_curriculum.yaml
@@ -26,19 +23,21 @@ tasks:
       - uv pip install -r requirements.txt
 
   install-arch:
-    desc: Install dependencies for Arch Linux using system PyTorch (ROCm)
+    desc: Install system packages (ROCm) and pip-only dependencies for Arch Linux
     cmds:
-      - |
-        echo ""
-        echo "=== Arch Linux / ROCm setup ==="
-        echo "read italian.md"
-        echo ""
-        echo "Then create the venv with system site-packages:"
-        echo "  uv venv --system-site-packages --python /usr/bin/python .venv"
-        echo "  source .venv/bin/activate"
-        echo "================================"
-        echo ""
-      - uv pip install --excludes excludes-arch.txt -r requirements-arch.txt
+      - sudo pacman -S --needed --noconfirm python-pytorch-opt-rocm python-numpy python-pandas python-soundfile
+      - yay -S --needed --noconfirm python-torchvision-rocm python-torchaudio-rocm
+      - uv venv --system-site-packages --python /usr/bin/python .venv
+      - uv pip install --python .venv/bin/python --excludes excludes-arch.txt -r requirements-arch.txt
+      - 'echo "Done. Activate the venv with:  source .venv/bin/activate"'
+
+  install-arch-nvidia:
+    desc: Install system packages (CUDA) and pip-only dependencies for Arch Linux
+    cmds:
+      - sudo pacman -S --needed --noconfirm python-pytorch-cuda python-torchvision-cuda python-numpy python-pandas python-soundfile
+      - uv venv --system-site-packages --python /usr/bin/python .venv
+      - uv pip install --python .venv/bin/python --excludes excludes-arch-nvidia.txt -r requirements-arch-nvidia.txt
+      - 'echo "Done. Activate the venv with:  source .venv/bin/activate"'
 
   install-live:
     desc: Install live transcription dependencies
@@ -108,6 +107,59 @@ tasks:
 
   train-it-curriculum:
     desc: Italian full curriculum training (3 phases)
+    cmds:
+      - python train.py --config {{.IT_CONFIG}} --phase 1
+      - python train.py --config {{.IT_CONFIG}} --phase 2 --resume ./{{.IT_OUTPUT}}-phase1
+      - python train.py --config {{.IT_CONFIG}} --phase 3 --resume ./{{.IT_OUTPUT}}-phase2
+
+  # ROCm variants — enable experimental aotriton attention kernels
+  train-fr-rocm:
+    desc: Fine-tune Moonshine on French (ROCm — enables experimental aotriton kernels)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.FR_CONFIG}} --no-curriculum
+
+  train-it-rocm:
+    desc: Fine-tune Moonshine on Italian (ROCm — enables experimental aotriton kernels)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.IT_CONFIG}} --no-curriculum
+
+  train-all-rocm:
+    desc: Train both French and Italian models sequentially (ROCm)
+    cmds:
+      - task: train-fr-rocm
+      - task: train-it-rocm
+
+  train-fr-test-rocm:
+    desc: Quick test run for French (ROCm)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.FR_CONFIG}} --no-curriculum --test-mode
+
+  train-it-test-rocm:
+    desc: Quick test run for Italian (ROCm)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.IT_CONFIG}} --no-curriculum --test-mode
+
+  train-fr-curriculum-rocm:
+    desc: French full curriculum training (ROCm)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.FR_CONFIG}} --phase 1
+      - python train.py --config {{.FR_CONFIG}} --phase 2 --resume ./{{.FR_OUTPUT}}-phase1
+      - python train.py --config {{.FR_CONFIG}} --phase 3 --resume ./{{.FR_OUTPUT}}-phase2
+
+  train-it-curriculum-rocm:
+    desc: Italian full curriculum training (ROCm)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
     cmds:
       - python train.py --config {{.IT_CONFIG}} --phase 1
       - python train.py --config {{.IT_CONFIG}} --phase 2 --resume ./{{.IT_OUTPUT}}-phase1

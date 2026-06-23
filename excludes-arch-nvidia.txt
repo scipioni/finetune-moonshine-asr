@@ -1,0 +1,19 @@
+# Packages provided by system pacman packages — excluded from uv resolution.
+# These are satisfied by the system site-packages in the venv and must NOT be
+# reinstalled from PyPI (the PyPI torch wheels bundle their own CUDA runtime
+# and conflict with the system-managed CUDA installation).
+#
+# System packages:
+#   python-pytorch-cuda       (pacman/extra)  -> torch  (use python-pytorch-opt-cuda if your CPU has AVX2)
+#   python-torchvision-cuda   (pacman/extra)  -> torchvision
+#   python-numpy              (pacman/extra)  -> numpy
+#   python-pandas             (pacman/extra)  -> pandas
+#   python-soundfile          (pacman/extra)  -> soundfile
+#
+# torchaudio: AUR package version lags PyTorch; installed from PyPI instead (see requirements-arch-nvidia.txt)
+torch
+torchvision
+torchcodec
+numpy
+pandas
+soundfile

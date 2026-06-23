@@ -528,6 +528,10 @@ def main():
         print(f"[WARNING] TEST MODE: Capping max_steps to {max_steps}")
     learning_rate = phase.learning_rate
 
+    # logging_dir was deprecated in transformers v5.2; use the env var instead.
+    if 'logging_dir' in train_config:
+        os.environ.setdefault('TENSORBOARD_LOGGING_DIR', train_config['logging_dir'])
+
     training_args = Seq2SeqTrainingArguments(
         output_dir=output_dir,
 
@@ -564,7 +568,6 @@ def main():
 
         # Logging
         report_to=train_config['report_to'],
-        logging_dir=train_config['logging_dir'],
 
         # Hub
         push_to_hub=args.push_to_hub or train_config.get('push_to_hub', False),

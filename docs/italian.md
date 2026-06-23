@@ -4,7 +4,9 @@ This guide covers training a Moonshine ASR model on Italian using the Multilingu
 
 ## Prerequisites
 
-### Standard setup (NVIDIA / CUDA)
+### Standard setup (any OS, pip-managed torch)
+
+Works on any system with CUDA drivers installed. PyTorch and friends are installed from PyPI.
 
 ```bash
 uv venv .venv
@@ -12,46 +14,67 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
+### Arch Linux with NVIDIA (CUDA)
+
+The system PyTorch from pacman (`python-pytorch-opt-cuda`) is built against the system CUDA
+installation. Installing `torch` from PyPI would bundle its own CUDA runtime and conflict with it.
+
+```bash
+task install-arch-nvidia
+source .venv/bin/activate
+```
+
+This installs the required pacman packages, creates a venv with `--system-site-packages`, and
+installs pip-only dependencies using `--excludes excludes-arch-nvidia.txt` so uv does not pull
+conflicting PyPI wheels for `torch`, `torchvision`, `torchaudio`, `numpy`, `pandas`, or `soundfile`.
+
 ### Arch Linux with ROCm (AMD GPU)
 
 The ROCm PyTorch build must come from pacman/AUR. Installing `torch` from PyPI would pull
 hundreds of MB of CUDA/nvidia packages that are useless on AMD hardware.
 
-**1. Install system packages:**
-
 ```bash
-yay -S python-pytorch-rocm python-numpy python-pandas python-soundfile python-torchvision-rocm python-torchaudio-rocm
-```
-
-**2. Create the venv and install pip-only dependencies:**
-
-```bash
-uv venv --system-site-packages --python /usr/bin/python .venv
-source .venv/bin/activate
 task install-arch
+source .venv/bin/activate
 ```
 
-`task install-arch` runs `uv pip install --excludes excludes-arch.txt -r requirements-arch.txt`.
-The `--excludes` flag tells uv to treat `torch`, `torchaudio`, `torchvision`, `triton`, `numpy`,
-`pandas`, and `soundfile` as already satisfied — preventing uv from pulling their PyPI (CUDA)
-equivalents as transitive dependencies.
+This installs `python-pytorch-opt-rocm` and friends via pacman/yay, creates a venv with
+`--system-site-packages`, and installs pip-only dependencies using `--excludes excludes-arch.txt`
+so uv does not pull their PyPI (CUDA) equivalents as transitive dependencies.
 
 ## Training
 
+Task names follow a simple rule: plain tasks (`train-it`, `train-it-test`, …) work for standard
+pip and Arch+NVIDIA setups. ROCm users have `-rocm` variants (`train-it-rocm`, …) that additionally
+set `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1` to enable the experimental aotriton attention
+kernels, which significantly improve performance on AMD hardware.
+
 ### Quick smoke test
 
-Run 500 samples to verify the pipeline works end-to-end before committing to a full run:
+Run 500 samples to verify the pipeline works end-to-end before committing to a full run.
 
+**Standard / Arch+NVIDIA:**
 ```bash
 task train-it-test
 ```
 
+**Arch+ROCm:**
+```bash
+task train-it-test-rocm
+```
+
 ### Full training
 
-Downloads MLS Italian directly from HuggingFace and trains for 8,000 steps (~2 epochs):
+Downloads MLS Italian directly from HuggingFace and trains for 8,000 steps (~2 epochs).
 
+**Standard / Arch+NVIDIA:**
 ```bash
 task train-it
+```
+
+**Arch+ROCm:**
+```bash
+task train-it-rocm
 ```
 
 Checkpoints and logs are saved to:
@@ -69,10 +92,16 @@ tensorboard --logdir logs/moonshine-it-no-curriculum
 
 ### Curriculum learning (optional)
 
-Progressive 3-phase training based on the Moonshine paper — short utterances first, then longer ones:
+Progressive 3-phase training based on the Moonshine paper — short utterances first, then longer ones.
 
+**Standard / Arch+NVIDIA:**
 ```bash
 task train-it-curriculum
+```
+
+**Arch+ROCm:**
+```bash
+task train-it-curriculum-rocm
 ```
 
 This runs the three phases sequentially, each resuming from the previous checkpoint.
@@ -244,15 +273,38 @@ task clean-data     # remove downloaded datasets
 
 ## Taskfile reference
 
-All available tasks for Italian:
+### Setup
+
+| Task | Description |
+|------|-------------|
+| `task install` | Install all deps via pip (standard / any OS) |
+| `task install-arch-nvidia` | Arch Linux + NVIDIA: install pip-only deps |
+| `task install-arch` | Arch Linux + ROCm: install pip-only deps |
+
+### Data & evaluation (all setups)
 
 | Task | Description |
 |------|-------------|
 | `task download-it` | Download MLS Italian dataset locally |
-| `task train-it` | Full training run |
-| `task train-it-test` | Quick 500-sample smoke test |
-| `task train-it-curriculum` | 3-phase curriculum training |
 | `task eval-it` | Evaluate on MLS test split |
 | `task infer-it FILE=…` | Transcribe a single audio file |
 | `task export-it` | Export to ONNX |
 | `task clean-it` | Remove outputs and logs |
+
+### Training — standard / Arch+NVIDIA
+
+| Task | Description |
+|------|-------------|
+| `task train-it` | Full training run |
+| `task train-it-test` | Quick 500-sample smoke test |
+| `task train-it-curriculum` | 3-phase curriculum training |
+
+### Training — Arch+ROCm
+
+Same as above but sets `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1`.
+
+| Task | Description |
+|------|-------------|
+| `task train-it-rocm` | Full training run |
+| `task train-it-test-rocm` | Quick 500-sample smoke test |
+| `task train-it-curriculum-rocm` | 3-phase curriculum training |
