@@ -212,9 +212,12 @@ class MoonshineSeq2SeqTrainer(Seq2SeqTrainer):
             else:
                 loss = None
 
-            # Generate transcriptions with phase-specific parameters
+            # Generate transcriptions with phase-specific parameters.
+            # max_length=None suppresses the "both max_new_tokens and max_length set" warning
+            # that fires when the model's default generation_config has max_length defined.
             generation_kwargs = {
                 "max_new_tokens": max_new_tokens,
+                "max_length": None,
                 **self.generation_config
             }
 

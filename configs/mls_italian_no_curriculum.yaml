@@ -34,7 +34,7 @@ training:
   gradient_accumulation_steps: 16  # Effective batch size = 4 * 16 = 64
   gradient_checkpointing: true
   fp16: false
-  bf16: true                       # BF16 more stable than FP16 on ROCm/AMD
+  bf16: true                       # BF16 more numerically stable than FP16
   fp16_full_eval: false
   bf16_full_eval: true
   max_grad_norm: 1.0
