@@ -1,5 +1,8 @@
 version: "3"
 
+env:
+  PYTHONPATH: "{{.ROOT_DIR}}"
+
 vars:
   # French
   FR_CONFIG: configs/mls_french_no_curriculum.yaml
