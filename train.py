@@ -525,11 +525,21 @@ def main():
 
     # Override with phase-specific and CLI args
     max_steps = args.max_steps or phase.max_steps
+    warmup_steps = train_config.get('warmup_steps', phase.warmup_steps)
     if args.test_mode:
         test_max = max(50, (500 // train_config['per_device_train_batch_size']) * 2)
         max_steps = min(max_steps, test_max)
-        print(f"[WARNING] TEST MODE: Capping max_steps to {max_steps}")
+        warmup_steps = min(warmup_steps, max(10, max_steps // 10))
+        print(f"[WARNING] TEST MODE: Capping max_steps to {max_steps}, warmup_steps to {warmup_steps}")
     learning_rate = phase.learning_rate
+
+    # schedule_free_* optimizers handle warmup internally; an external warmup scheduler
+    # double-warms the LR and corrupts the optimizer's weight_sum accounting.
+    optim_name = train_config.get('optim', 'adamw_torch')
+    if optim_name.startswith('schedule_free'):
+        effective_scheduler = 'constant'
+    else:
+        effective_scheduler = train_config.get('lr_scheduler_type', 'linear')
 
     # logging_dir was deprecated in transformers v5.2; use the env var instead.
     if 'logging_dir' in train_config:
@@ -544,10 +554,10 @@ def main():
         gradient_accumulation_steps=train_config['gradient_accumulation_steps'],
 
         # Optimization
-        optim=train_config.get('optim', 'adamw_torch'),  # Default to standard AdamW if not specified
+        optim=optim_name,
         learning_rate=learning_rate,
-        lr_scheduler_type=train_config.get('lr_scheduler_type', 'linear'),  # Default to linear
-        warmup_steps=train_config.get('warmup_steps', phase.warmup_steps),  # Allow override from config
+        lr_scheduler_type=effective_scheduler,
+        warmup_steps=warmup_steps,
         max_grad_norm=train_config['max_grad_norm'],
         max_steps=max_steps,
         label_smoothing_factor=phase.label_smoothing,
@@ -555,7 +565,9 @@ def main():
         # Memory optimization
         gradient_checkpointing=train_config['gradient_checkpointing'],
         fp16=train_config['fp16'],
-        fp16_full_eval=train_config.get('fp16_full_eval', True),
+        fp16_full_eval=train_config.get('fp16_full_eval', False),
+        bf16=train_config.get('bf16', False),
+        bf16_full_eval=train_config.get('bf16_full_eval', False),
 
         # Evaluation
         eval_strategy=train_config['eval_strategy'],
