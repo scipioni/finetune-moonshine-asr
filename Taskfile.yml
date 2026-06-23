@@ -1,5 +1,8 @@
 version: "3"
 
+env:
+  TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+
 vars:
   # French
   FR_CONFIG: configs/mls_french_no_curriculum.yaml
