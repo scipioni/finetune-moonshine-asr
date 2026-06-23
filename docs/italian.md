@@ -20,8 +20,7 @@ hundreds of MB of CUDA/nvidia packages that are useless on AMD hardware.
 **1. Install system packages:**
 
 ```bash
-sudo pacman -S python-pytorch-opt-rocm python-torchvision python-numpy python-pandas python-soundfile
-yay -S python-torchaudio
+yay -S python-pytorch-rocm python-numpy python-pandas python-soundfile python-torchvision-rocm python-torchaudio-rocm
 ```
 
 **2. Create the venv and install pip-only dependencies:**

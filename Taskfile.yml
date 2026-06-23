@@ -31,9 +31,7 @@ tasks:
       - |
         echo ""
         echo "=== Arch Linux / ROCm setup ==="
-        echo "The following packages must be installed from pacman/AUR first:"
-        echo "  sudo pacman -S python-pytorch-opt-rocm python-torchvision python-numpy python-pandas python-soundfile"
-        echo "  yay -S python-torchaudio"
+        echo "read italian.md"
         echo ""
         echo "Then create the venv with system site-packages:"
         echo "  uv venv --system-site-packages --python /usr/bin/python .venv"

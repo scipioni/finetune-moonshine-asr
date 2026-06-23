@@ -1,8 +1,8 @@
 # Requirements for Arch Linux with system PyTorch (ROCm)
 #
 # The following packages must be installed from pacman/AUR BEFORE activating the venv:
-#   sudo pacman -S python-pytorch-opt-rocm python-torchvision python-numpy python-pandas python-soundfile
-#   yay -S python-torchaudio  (must match pytorch version)
+#   sudo pacman -S python-pytorch-opt-rocm python-numpy python-pandas python-soundfile
+#   yay -S python-torchvision-rocm python-torchaudio-rocm  (must match pytorch version)
 #
 # Then create the venv with system site-packages:
 #   uv venv --system-site-packages --python /usr/bin/python .venv

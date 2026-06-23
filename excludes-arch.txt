@@ -4,8 +4,8 @@
 #
 # System packages:
 #   python-pytorch-opt-rocm  -> torch
-#   python-torchvision       -> torchvision
-#   python-torchaudio        -> torchaudio  (AUR)
+#   python-torchvision-rocm  -> torchvision  (AUR, ROCm build)
+#   python-torchaudio-rocm        -> torchaudio   (AUR)
 #   python-numpy             -> numpy
 #   python-pandas            -> pandas
 #   python-soundfile         -> soundfile
