@@ -22,6 +22,7 @@ Examples:
     python train.py --config moonshine_ft/configs/common_voice_fr.yaml --no-curriculum
 """
 
+import moonshine_ft.compat  # noqa: F401 — must be first import
 import argparse
 import yaml
 import os

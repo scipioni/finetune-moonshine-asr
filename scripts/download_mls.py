@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Download and save an MLS language dataset locally."""
 
+import moonshine_ft.compat  # noqa: F401
 import argparse
 from datasets import load_dataset, DatasetDict, Audio
 

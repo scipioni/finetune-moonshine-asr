@@ -19,6 +19,7 @@ Usage:
         --output ./evaluation_results.json --save-predictions
 """
 
+import moonshine_ft.compat  # noqa: F401
 import argparse
 import json
 import time
