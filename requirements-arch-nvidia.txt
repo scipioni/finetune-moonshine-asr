@@ -1,13 +1,11 @@
 # Requirements for Arch Linux with system PyTorch (CUDA/NVIDIA)
 #
-# The following packages must be installed from pacman/AUR BEFORE activating the venv:
-#   sudo pacman -S python-pytorch-opt-cuda python-torchvision python-torchaudio \
-#                  python-numpy python-pandas python-soundfile
+# Run `task install-arch-nvidia` to install system packages and these deps in one step.
 #
-# Then create the venv with system site-packages:
-#   uv venv --system-site-packages --python /usr/bin/python .venv
-#   source .venv/bin/activate
-#   uv pip install --excludes excludes-arch-nvidia.txt -r requirements-arch-nvidia.txt
+# System packages installed by the task (pacman):
+#   python-pytorch-cuda, python-torchvision-cuda, python-numpy, python-pandas, python-soundfile
+#
+# torchaudio is installed from PyPI (see below) — the AUR package lags PyTorch releases.
 
 # Training & Evaluation
 transformers>=4.35.0

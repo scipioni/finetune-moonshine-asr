@@ -16,7 +16,7 @@ uv pip install -r requirements.txt
 
 ### Arch Linux with NVIDIA (CUDA)
 
-The system PyTorch from pacman (`python-pytorch-opt-cuda`) is built against the system CUDA
+The system PyTorch from pacman (`python-pytorch-cuda`) is built against the system CUDA
 installation. Installing `torch` from PyPI would bundle its own CUDA runtime and conflict with it.
 
 ```bash
@@ -24,9 +24,10 @@ task install-arch-nvidia
 source .venv/bin/activate
 ```
 
-This installs the required pacman packages, creates a venv with `--system-site-packages`, and
-installs pip-only dependencies using `--excludes excludes-arch-nvidia.txt` so uv does not pull
-conflicting PyPI wheels for `torch`, `torchvision`, `torchaudio`, `numpy`, `pandas`, or `soundfile`.
+This installs `python-pytorch-cuda`, `python-torchvision-cuda`, and friends via pacman, creates a
+venv with `--system-site-packages`, and installs the remaining pip dependencies. `torchaudio` is
+installed from PyPI (the AUR package lags PyTorch releases). `torch`, `torchvision`, `numpy`,
+`pandas`, and `soundfile` are excluded from pip to avoid conflicting with the system packages.
 
 ### Arch Linux with ROCm (AMD GPU)
 
@@ -114,7 +115,7 @@ The training config is at `configs/mls_italian_no_curriculum.yaml`. Key settings
 |-----------|-------|-------|
 | `per_device_train_batch_size` | 4 | Safe for 6 GB VRAM |
 | `gradient_accumulation_steps` | 16 | Effective batch size 64 |
-| `bf16` | true | BF16 instead of FP16 — more stable on ROCm/AMD |
+| `bf16` | true | BF16 instead of FP16 — more numerically stable |
 | `max_steps` | 8000 | ~2 epochs on MLS Italian |
 | `learning_rate` | 3e-4 | Scaled from paper for batch size 64 |
 | `warmup_steps` | 256 | ~3.2% of total steps |
@@ -278,8 +279,8 @@ task clean-data     # remove downloaded datasets
 | Task | Description |
 |------|-------------|
 | `task install` | Install all deps via pip (standard / any OS) |
-| `task install-arch-nvidia` | Arch Linux + NVIDIA: install pip-only deps |
-| `task install-arch` | Arch Linux + ROCm: install pip-only deps |
+| `task install-arch-nvidia` | Arch Linux + NVIDIA: install system packages and pip deps |
+| `task install-arch` | Arch Linux + ROCm: install system packages and pip deps |
 
 ### Data & evaluation (all setups)
 
