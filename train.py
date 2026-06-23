@@ -29,6 +29,7 @@ import os
 from pathlib import Path
 
 import torch
+import torch.nn as nn
 import numpy as np
 import evaluate
 from transformers import (
@@ -40,6 +41,46 @@ from transformers import (
 
 from moonshine_ft.data_loader import MoonshineDataLoader
 from moonshine_ft.curriculum import CurriculumScheduler
+
+
+def patch_layer_norms_for_rocm(model: nn.Module) -> None:
+    """
+    Replace nn.LayerNorm with an element-wise fallback on AMD ROCm.
+
+    ROCm's NativeLayerNormBackward0 kernel produces NaN for certain activation
+    patterns in Moonshine's encoder/decoder.  Decomposing layer norm into basic
+    ops sidesteps the fused kernel and gives numerically stable gradients.
+    Only applied when running on ROCm; NVIDIA/CPU paths keep the fast kernel.
+    """
+    if not (hasattr(torch.version, 'hip') and torch.version.hip is not None):
+        return
+
+    class _StableLN(nn.Module):
+        def __init__(self, ln: nn.LayerNorm):
+            super().__init__()
+            self.register_parameter('weight', ln.weight)
+            self.register_parameter('bias', ln.bias)
+            self.eps = ln.eps
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            mean = x.mean(-1, keepdim=True)
+            diff = x - mean
+            var = (diff * diff).mean(-1, keepdim=True)
+            x_hat = diff * torch.rsqrt(var + self.eps)
+            if self.weight is not None:
+                x_hat = x_hat * self.weight
+            if self.bias is not None:
+                x_hat = x_hat + self.bias
+            return x_hat
+
+    replaced = 0
+    for parent_name, parent in list(model.named_modules()):
+        for child_name, child in list(parent.named_children()):
+            if isinstance(child, nn.LayerNorm):
+                setattr(parent, child_name, _StableLN(child))
+                replaced += 1
+    if replaced:
+        print(f"[ROCm] Replaced {replaced} LayerNorm(s) with element-wise fallback")
 
 
 def parse_args():
@@ -451,6 +492,9 @@ def main():
         print(f"  Repetition penalty: {model.generation_config.repetition_penalty}")
         print(f"  Num beams: {model.generation_config.num_beams}")
         print(f"  No repeat ngram size: {model.generation_config.no_repeat_ngram_size}")
+
+    # Patch LayerNorm for ROCm stability before any other model modification
+    patch_layer_norms_for_rocm(model)
 
     # Freeze encoder if specified
     if config['model'].get('freeze_encoder', False):
