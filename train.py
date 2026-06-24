@@ -30,6 +30,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import evaluate
 from transformers import (
@@ -58,25 +59,24 @@ def patch_layer_norms_for_rocm(model: nn.Module) -> None:
     class _StableLN(nn.Module):
         def __init__(self, ln: nn.LayerNorm):
             super().__init__()
+            self.normalized_shape = ln.normalized_shape
             self.register_parameter('weight', ln.weight)
             self.register_parameter('bias', ln.bias)
             self.eps = ln.eps
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            # Upcast to FP32 — same as what F.layer_norm does internally.
-            # Without this, FP16 variance accumulation loses precision and
-            # the norm stops normalizing, causing near-random generation.
+            # Upcast to FP32 before calling the fused kernel.  The ROCm
+            # NativeLayerNormBackward0 NaN only triggers on FP16 inputs;
+            # FP32 inputs use the same fast fused kernel without the bug.
             orig = x.dtype
-            x = x.float()
-            mean = x.mean(-1, keepdim=True)
-            diff = x - mean
-            var = (diff * diff).mean(-1, keepdim=True)
-            x_hat = diff * torch.rsqrt(var + self.eps)
-            if self.weight is not None:
-                x_hat = x_hat * self.weight.float()
-            if self.bias is not None:
-                x_hat = x_hat + self.bias.float()
-            return x_hat.to(orig)
+            out = F.layer_norm(
+                x.float(),
+                self.normalized_shape,
+                self.weight.float() if self.weight is not None else None,
+                self.bias.float() if self.bias is not None else None,
+                self.eps,
+            )
+            return out.to(orig)
 
     replaced = 0
     for parent_name, parent in list(model.named_modules()):
