@@ -44,7 +44,7 @@ training:
   fp16_full_eval: true
   bf16_full_eval: false
   max_grad_norm: 1.0
-  torch_compile: true                  # Inductor fuses element-wise ops
+  torch_compile: false                 # Inductor CantSplit on ROCm dynamic shapes (288-dim + variable seq len)
 
   max_steps: 8000
 
