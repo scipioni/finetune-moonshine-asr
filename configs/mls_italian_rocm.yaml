@@ -44,7 +44,16 @@ training:
   fp16_full_eval: true
   bf16_full_eval: false
   max_grad_norm: 1.0
-  torch_compile: false                 # Inductor CantSplit on ROCm dynamic shapes (288-dim + variable seq len)
+  # Inductor (default) fails with CantSplit on ROCm dynamic shapes.
+  # aot_eager traces the graph ahead-of-time without Inductor codegen —
+  # no kernel fusion, but eliminates per-step Python graph-building overhead.
+  torch_compile: true
+  torch_compile_backend: "aot_eager"
+
+  # Unified memory: GPU owns all RAM, pin_memory adds overhead without benefit.
+  # Parallel data workers overlap loading with GPU compute.
+  dataloader_pin_memory: false
+  dataloader_num_workers: 4
 
   max_steps: 8000
 

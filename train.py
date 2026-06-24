@@ -620,6 +620,13 @@ def main():
         # torch_compile is passed here so HF applies it after column detection;
         # calling torch.compile(model) before Trainer breaks forward() inspection.
         torch_compile=train_config.get('torch_compile', False),
+        torch_compile_backend=train_config.get('torch_compile_backend', 'inductor'),
+
+        # Data loading
+        dataloader_num_workers=train_config.get('dataloader_num_workers', 0),
+        # Disable pin_memory on unified-memory iGPUs — the GPU already owns all RAM
+        # and pinning adds overhead without benefit.
+        dataloader_pin_memory=train_config.get('dataloader_pin_memory', True),
 
         # Evaluation
         eval_strategy=train_config['eval_strategy'],
