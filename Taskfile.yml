@@ -14,6 +14,10 @@ vars:
   IT_OUTPUT: results-moonshine-it-no-curriculum
   IT_DATA: data/mls_italian_split
 
+  # Italian — Ryzen AI Max+ 395 (Strix Halo, ROCm)
+  IT_STRIX_CONFIG: configs/mls_italian_rocm.yaml
+  IT_STRIX_OUTPUT: results-moonshine-it-rocm
+
 tasks:
 
   # ─────────────────────────────────────────────
@@ -167,6 +171,38 @@ tasks:
       - python train.py --config {{.IT_CONFIG}} --phase 1
       - python train.py --config {{.IT_CONFIG}} --phase 2 --resume ./{{.IT_OUTPUT}}-phase1
       - python train.py --config {{.IT_CONFIG}} --phase 3 --resume ./{{.IT_OUTPUT}}-phase2
+
+  # Strix Halo (Ryzen AI Max+ 395) — ROCm + FP16 + torch.compile
+  train-it-strix:
+    desc: Fine-tune Moonshine on Italian, tuned for Ryzen AI Max+ 395 (FP16, larger batch, torch.compile)
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.IT_STRIX_CONFIG}} --no-curriculum
+
+  train-it-test-strix:
+    desc: Quick test run for Italian on Ryzen AI Max+ 395
+    env:
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    cmds:
+      - python train.py --config {{.IT_STRIX_CONFIG}} --no-curriculum --test-mode
+
+  eval-it-strix:
+    desc: Evaluate Italian Strix model on MLS test set
+    cmds:
+      - >-
+        python scripts/evaluate.py
+        --model ./{{.IT_STRIX_OUTPUT}}
+        --dataset facebook/multilingual_librispeech
+        --split test
+        --text-column sentence
+        --output ./eval-results-it-strix.json
+        --save-predictions
+
+  clean-it-strix:
+    desc: Remove Strix Italian training outputs and logs
+    cmds:
+      - rm -rf ./{{.IT_STRIX_OUTPUT}} ./{{.IT_STRIX_OUTPUT}}_encoded ./logs/moonshine-it-rocm ./eval-results-it-strix.json
 
   # ─────────────────────────────────────────────
   # Evaluation

@@ -32,9 +32,9 @@ training:
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 16  # Effective batch size = 4 * 16 = 64
   gradient_checkpointing: true
-  fp16: true   # FP16 halves memory traffic — set false if NaN loss reappears
+  fp16: false
   bf16: false  # Set true on NVIDIA Ampere+ (RTX 3000+) or AMD discrete GPU with native BF16
-  fp16_full_eval: true
+  fp16_full_eval: false
   bf16_full_eval: false
   max_grad_norm: 1.0
 
