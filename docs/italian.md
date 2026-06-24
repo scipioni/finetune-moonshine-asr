@@ -50,18 +50,28 @@ pip and Arch+NVIDIA setups. ROCm users have `-rocm` variants (`train-it-rocm`, �
 set `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1` to enable the experimental aotriton attention
 kernels, which significantly improve performance on AMD hardware.
 
+Ryzen AI Max+ 395 (Strix Halo) users should use the `-strix` variants instead — they use a
+separate config (`configs/mls_italian_rocm.yaml`) tuned for the iGPU's hardware characteristics:
+FP16 (hardware-native, not emulated), larger batches (96 GB unified memory), and no gradient
+checkpointing.
+
 ### Quick smoke test
 
-Run 500 samples to verify the pipeline works end-to-end before committing to a full run.
+Run a small number of steps to verify the pipeline works end-to-end before committing to a full run.
 
 **Standard / Arch+NVIDIA:**
 ```bash
 task train-it-test
 ```
 
-**Arch+ROCm:**
+**Arch+ROCm (discrete GPU):**
 ```bash
 task train-it-test-rocm
+```
+
+**Ryzen AI Max+ 395 (Strix Halo):**
+```bash
+task train-it-test-strix
 ```
 
 ### Full training
@@ -73,22 +83,31 @@ Downloads MLS Italian directly from HuggingFace and trains for 8,000 steps (~2 e
 task train-it
 ```
 
-**Arch+ROCm:**
+**Arch+ROCm (discrete GPU):**
 ```bash
 task train-it-rocm
 ```
 
+**Ryzen AI Max+ 395 (Strix Halo):**
+```bash
+task train-it-strix
+```
+
 Checkpoints and logs are saved to:
 
-```
-results-moonshine-it-no-curriculum/   # model checkpoints
-logs/moonshine-it-no-curriculum/      # TensorBoard logs
-```
+| Setup | Checkpoints | Logs |
+|-------|-------------|------|
+| Standard / NVIDIA | `results-moonshine-it-no-curriculum/` | `logs/moonshine-it-no-curriculum/` |
+| Strix Halo | `results-moonshine-it-rocm/` | `logs/moonshine-it-rocm/` |
 
 Monitor training:
 
 ```bash
+# NVIDIA
 tensorboard --logdir logs/moonshine-it-no-curriculum
+
+# Strix Halo
+tensorboard --logdir logs/moonshine-it-rocm
 ```
 
 ### Curriculum learning (optional)
@@ -109,26 +128,55 @@ This runs the three phases sequentially, each resuming from the previous checkpo
 
 ## Configuration
 
-The training config is at `configs/mls_italian_no_curriculum.yaml`. Key settings tuned for a 6 GB GPU:
+### Standard / NVIDIA — `configs/mls_italian_no_curriculum.yaml`
+
+Tuned for a 6 GB VRAM GPU (e.g. RTX 3060):
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | `per_device_train_batch_size` | 4 | Safe for 6 GB VRAM |
 | `gradient_accumulation_steps` | 16 | Effective batch size 64 |
-| `bf16` | true | BF16 instead of FP16 — more numerically stable |
+| `fp16` | false | FP32 training for stability |
+| `gradient_checkpointing` | true | Saves memory by recomputing activations |
 | `max_steps` | 8000 | ~2 epochs on MLS Italian |
 | `learning_rate` | 3e-4 | Scaled from paper for batch size 64 |
 | `warmup_steps` | 256 | ~3.2% of total steps |
 
-If you have more VRAM, increase `per_device_train_batch_size` and decrease `gradient_accumulation_steps` proportionally to keep the effective batch size at 64.
+### Ryzen AI Max+ 395 (Strix Halo) — `configs/mls_italian_rocm.yaml`
+
+Tuned for the Strix Halo iGPU (40 RDNA 3.5 CUs, 96 GB unified LPDDR5X):
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| `per_device_train_batch_size` | 8 | 2× NVIDIA — 96 GB allows it |
+| `per_device_eval_batch_size` | 64 | Maximises eval throughput |
+| `gradient_accumulation_steps` | 8 | Effective batch size 64 (same as NVIDIA) |
+| `fp16` | true | Hardware FP16; halves memory traffic on a bandwidth-limited iGPU |
+| `gradient_checkpointing` | false | 96 GB unified memory — recomputation not needed |
+| `max_steps` | 8000 | ~2 epochs on MLS Italian |
+| `learning_rate` | 3e-4 | Same as NVIDIA |
+| `warmup_steps` | 256 | ~3.2% of total steps |
+
+**Why FP16 and not BF16?** The Strix Halo iGPU emulates BF16 in FP32 hardware (~10× slower).
+FP16 has native hardware support and is safe after the element-wise LayerNorm fallback ensures
+FP32-precision normalisation on every forward/backward pass.
+
+**Why no `torch_compile`?** Inductor's SIMD codegen fails on ROCm with variable sequence lengths
+(`CantSplit` on symbolic expressions involving the 288-dim hidden size). This may be fixed in a
+future ROCm/Inductor release.
+
+If you have more VRAM (either config), increase `per_device_train_batch_size` and decrease
+`gradient_accumulation_steps` proportionally to keep the effective batch size at 64.
 
 ## Evaluation
 
 ```bash
-task eval-it
+task eval-it          # NVIDIA / standard
+task eval-it-strix    # Ryzen AI Max+ 395
 ```
 
-Results are written to `eval-results-it.json`. To evaluate a specific checkpoint:
+Results are written to `eval-results-it.json` / `eval-results-it-strix.json`. To evaluate a
+specific checkpoint:
 
 ```bash
 python scripts/evaluate.py \
@@ -268,8 +316,9 @@ for line in transcript.lines:
 ## Cleanup
 
 ```bash
-task clean-it       # remove checkpoints and logs
-task clean-data     # remove downloaded datasets
+task clean-it          # remove NVIDIA checkpoints and logs
+task clean-it-strix    # remove Strix Halo checkpoints and logs
+task clean-data        # remove downloaded datasets
 ```
 
 ## Taskfile reference
@@ -287,25 +336,37 @@ task clean-data     # remove downloaded datasets
 | Task | Description |
 |------|-------------|
 | `task download-it` | Download MLS Italian dataset locally |
-| `task eval-it` | Evaluate on MLS test split |
+| `task eval-it` | Evaluate NVIDIA model on MLS test split |
+| `task eval-it-strix` | Evaluate Strix Halo model on MLS test split |
 | `task infer-it FILE=…` | Transcribe a single audio file |
 | `task export-it` | Export to ONNX |
-| `task clean-it` | Remove outputs and logs |
+| `task clean-it` | Remove NVIDIA outputs and logs |
+| `task clean-it-strix` | Remove Strix Halo outputs and logs |
 
 ### Training — standard / Arch+NVIDIA
 
 | Task | Description |
 |------|-------------|
 | `task train-it` | Full training run |
-| `task train-it-test` | Quick 500-sample smoke test |
+| `task train-it-test` | Quick smoke test |
 | `task train-it-curriculum` | 3-phase curriculum training |
 
-### Training — Arch+ROCm
+### Training — Arch+ROCm (discrete GPU)
 
 Same as above but sets `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1`.
 
 | Task | Description |
 |------|-------------|
 | `task train-it-rocm` | Full training run |
-| `task train-it-test-rocm` | Quick 500-sample smoke test |
+| `task train-it-test-rocm` | Quick smoke test |
 | `task train-it-curriculum-rocm` | 3-phase curriculum training |
+
+### Training — Ryzen AI Max+ 395 (Strix Halo)
+
+Uses `configs/mls_italian_rocm.yaml` (FP16, larger batch, no gradient checkpointing).
+Sets `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1`.
+
+| Task | Description |
+|------|-------------|
+| `task train-it-strix` | Full training run |
+| `task train-it-test-strix` | Quick smoke test |
