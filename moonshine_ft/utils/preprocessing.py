@@ -2,7 +2,26 @@
 Audio preprocessing utilities for Moonshine ASR.
 """
 
+import re
+import unicodedata
+
 import numpy as np
+
+_PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
+_SPACE_RE = re.compile(r"\s+")
+
+
+def normalize_text(text: str) -> str:
+    """Normalize transcript for WER computation and training targets.
+
+    Lowercases, strips punctuation, and collapses whitespace.
+    Preserves Italian accented characters (à è é ì ò ù).
+    """
+    text = unicodedata.normalize("NFC", text)
+    text = text.lower()
+    text = _PUNCT_RE.sub(" ", text)
+    text = _SPACE_RE.sub(" ", text)
+    return text.strip()
 
 
 def normalize_audio(audio_data: np.ndarray, target_rms: float = 0.075) -> np.ndarray:

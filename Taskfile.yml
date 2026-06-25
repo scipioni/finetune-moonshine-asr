@@ -301,6 +301,11 @@ tasks:
     cmds:
       - python scripts/download_common_voice.py --language it --output ./data/cv_italian_split
 
+  download-vp-it:
+    desc: "Download Facebook VoxPopuli Italian dataset."
+    cmds:
+      - python scripts/download_voxpopuli.py --language it --output ./data/vp_italian_split
+
   clean-fr:
     desc: Remove French training outputs and logs
     cmds:
