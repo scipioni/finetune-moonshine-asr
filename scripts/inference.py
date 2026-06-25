@@ -188,6 +188,11 @@ class ManualONNXInference:
         elif 'input_features' in encoder_inputs:
             encoder_inputs['input_features'] = input_values
 
+        if 'attention_mask' in encoder_inputs:
+            mask = inputs.get('attention_mask', None)
+            if mask is not None:
+                encoder_inputs['attention_mask'] = mask.astype(np.int64)
+
         # Run encoder
         encoder_outputs = self.encoder_session.run(None, encoder_inputs)
         return encoder_outputs[0]

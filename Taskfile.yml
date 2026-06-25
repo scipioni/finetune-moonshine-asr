@@ -213,8 +213,8 @@ tasks:
     cmds:
       - >-
         python scripts/evaluate.py
-        --model ./{{.FR_OUTPUT}}
-        --dataset facebook/multilingual_librispeech
+        --model ./{{.FR_OUTPUT}}/final
+        --dataset ./{{.FR_DATA}}
         --split test
         --text-column sentence
         --output ./eval-results-fr.json
@@ -225,8 +225,8 @@ tasks:
     cmds:
       - >-
         python scripts/evaluate.py
-        --model ./{{.IT_OUTPUT}}
-        --dataset facebook/multilingual_librispeech
+        --model ./{{.IT_OUTPUT}}/final
+        --dataset ./{{.IT_DATA}}
         --split test
         --text-column sentence
         --output ./eval-results-it.json
@@ -245,12 +245,12 @@ tasks:
   infer-fr:
     desc: "Run inference with French model. Usage: task infer-fr FILE=audio.wav"
     cmds:
-      - python scripts/inference.py --model ./{{.FR_OUTPUT}} --audio {{.FILE}}
+      - python scripts/inference.py --model ./{{.FR_OUTPUT}}/final --audio {{.FILE}}
 
   infer-it:
     desc: "Run inference with Italian model. Usage: task infer-it FILE=audio.wav"
     cmds:
-      - python scripts/inference.py --model ./{{.IT_OUTPUT}} --audio {{.FILE}}
+      - python scripts/inference.py --model ./{{.IT_OUTPUT}}/final --audio {{.FILE}}
 
   # ─────────────────────────────────────────────
   # ONNX export
@@ -259,12 +259,12 @@ tasks:
   export-fr:
     desc: Export French model to ONNX for deployment
     cmds:
-      - python scripts/convert_for_deployment.py --model ./{{.FR_OUTPUT}} --output ./deploy/moonshine-fr
+      - python scripts/convert_for_deployment.py --model ./{{.FR_OUTPUT}}/final --output ./deploy/moonshine-fr
 
   export-it:
     desc: Export Italian model to ONNX for deployment
     cmds:
-      - python scripts/convert_for_deployment.py --model ./{{.IT_OUTPUT}} --output ./deploy/moonshine-it
+      - python scripts/convert_for_deployment.py --model ./{{.IT_OUTPUT}}/final --output ./deploy/moonshine-it
 
   # ─────────────────────────────────────────────
   # Utilities
