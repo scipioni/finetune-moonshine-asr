@@ -487,12 +487,18 @@ class MoonshineDataLoader:
         # Determine which duration column exists
         duration_col = 'duration' if 'duration' in dataset.column_names else 'audio_duration'
 
-        def is_valid_duration(duration):
-            # When using input_columns, we receive the column value directly
+        def is_valid_duration(duration, audio):
+            # Resolve duration if None by calculating from audio array
+            if duration is None and audio is not None:
+                if 'array' in audio and audio['array'] is not None:
+                    duration = len(audio['array']) / audio['sampling_rate']
+
+            if duration is None:
+                return False
             return min_duration <= duration <= max_duration
 
-        # Use input_columns to avoid decoding audio
-        filtered = dataset.filter(is_valid_duration, input_columns=[duration_col])
+        # Pass both duration_col and audio to ensure full resolution
+        filtered = dataset.filter(is_valid_duration, input_columns=[duration_col, 'audio'])
 
         print(f"\nFiltering by duration ({min_duration}s - {max_duration}s):")
         print(f"  Original: {len(dataset):,} samples")

@@ -250,7 +250,15 @@ class MoonshineSeq2SeqTrainer(Seq2SeqTrainer):
             return (loss, None, None)
 
         # Generate predictions
-        with torch.no_grad():
+        dtype = torch.bfloat16 if getattr(self.args, "bf16", False) else (torch.float16 if getattr(self.args, "fp16", False) else None)
+        if dtype is not None:
+            from torch.cuda.amp import autocast
+            ctx = autocast(dtype=dtype)
+        else:
+            import contextlib
+            ctx = contextlib.nullcontext()
+
+        with torch.no_grad(), ctx:
             # Calculate loss first (if labels available)
             if has_labels:
                 outputs = model(**inputs)
@@ -382,11 +390,11 @@ def main():
     data_loader = MoonshineDataLoader.from_config(config)
     dataset_dict = data_loader.load_dataset()
 
-    # Test mode: use only 500 samples (enough to get samples in various duration ranges)
+    # Test mode: use only 500 samples (shuffled to get representative durations/text lengths)
     if args.test_mode:
-        print("\n[WARNING] TEST MODE: Using only 500 samples per split")
-        dataset_dict['train'] = dataset_dict['train'].select(range(min(500, len(dataset_dict['train']))))
-        dataset_dict['test'] = dataset_dict['test'].select(range(min(500, len(dataset_dict['test']))))
+        print("\n[WARNING] TEST MODE: Shuffling and selecting 500 samples per split")
+        dataset_dict['train'] = dataset_dict['train'].shuffle(seed=42).select(range(min(500, len(dataset_dict['train']))))
+        dataset_dict['test'] = dataset_dict['test'].shuffle(seed=42).select(range(min(500, len(dataset_dict['test']))))
 
     # Filter by global duration constraints (remove very short/long)
     print(f"\n{'='*60}")
@@ -714,7 +722,7 @@ def main():
             print(f"\n⚠️  Final evaluation skipped due to dtype mismatch (this is a known issue with FP16 training)")
             print(f"Your model was saved successfully to: {training_args.output_dir}/final")
             print(f"\nYou can evaluate it separately with:")
-            print(f"  python scripts/evaluate.py --model {training_args.output_dir}/final --dataset {config['dataset']['name']} --split test")
+            print(f"  python scripts/evaluate.py --model {training_args.output_dir}/final --dataset {config['dataset'].get('name', config['dataset'].get('path'))} --split test")
             results = None
         else:
             raise

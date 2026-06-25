@@ -165,27 +165,30 @@ class CurriculumScheduler:
         Returns:
             Filtered dataset
         """
-        def meets_criteria(duration, text):
-            # Check duration constraint (primary filter)
-            if duration < phase.min_duration or duration > phase.max_duration:
+        def meets_criteria(duration, text, audio):
+            # Resolve duration if None by calculating from audio array
+            if duration is None and audio is not None:
+                if 'array' in audio and audio['array'] is not None:
+                    duration = len(audio['array']) / audio['sampling_rate']
+
+            if duration is None:
+                print(f"[DEBUG] duration is None!")
                 return False
 
-            # Check word count constraint (if specified)
-            if phase.max_words is not None:
-                word_count = len(text.split())
-                if word_count > phase.max_words:
-                    return False
-
-            return True
+            word_count = len(text.split()) if text else 0
+            meets = (phase.min_duration <= duration <= phase.max_duration) and (phase.max_words is None or word_count <= phase.max_words)
+            if meets:
+                print(f"[DEBUG] MEETS: dur={duration:.2f}s, words={word_count}")
+            return meets
 
         # Count samples <1 second for warning (paper recommendation)
         total_count = len(dataset)
-        durations_all = dataset[duration_column]
+        durations_all = [d if d is not None else 5.0 for d in dataset[duration_column]]
         very_short = sum(1 for d in durations_all if d < 1.0)
         very_short_pct = 100 * very_short / total_count if total_count > 0 else 0
 
         # Use input_columns to avoid decoding audio
-        filtered = dataset.filter(meets_criteria, input_columns=[duration_column, text_column])
+        filtered = dataset.filter(meets_criteria, input_columns=[duration_column, text_column, "audio"])
 
         print(f"\n{phase.name}:")
         print(f"  Duration range: [{phase.min_duration}s, {phase.max_duration}s]")
@@ -204,7 +207,10 @@ class CurriculumScheduler:
 
         # Calculate duration statistics for filtered dataset
         if len(filtered) > 0:
-            durations = filtered[duration_column]
+            durations = [
+                d if d is not None else len(a['array']) / a['sampling_rate']
+                for d, a in zip(filtered[duration_column], filtered["audio"])
+            ]
             avg_duration = sum(durations) / len(durations)
             min_dur = min(durations)
             max_dur = max(durations)
