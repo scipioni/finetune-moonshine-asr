@@ -30,6 +30,7 @@ tqdm>=4.66.0
 onnx>=1.14.0
 onnxruntime>=1.16.0
 optimum>=1.14.0
+optimum-onnx>=0.1.0
 
 # Development
 pytest>=7.0
