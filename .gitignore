@@ -100,3 +100,4 @@ coverage.xml
 # PyInstaller
 *.manifest
 *.spec
+/deploy

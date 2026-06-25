@@ -620,7 +620,7 @@ def main():
         # torch_compile is passed here so HF applies it after column detection;
         # calling torch.compile(model) before Trainer breaks forward() inspection.
         torch_compile=train_config.get('torch_compile', False),
-        torch_compile_backend=train_config.get('torch_compile_backend', 'inductor'),
+        torch_compile_backend=train_config.get('torch_compile_backend', 'inductor') if train_config.get('torch_compile', False) else None,
 
         # Data loading
         dataloader_num_workers=train_config.get('dataloader_num_workers', 0),
@@ -650,6 +650,8 @@ def main():
         # Run name
         run_name=f"moonshine_phase{args.phase}" if config['curriculum']['enabled'] else "moonshine_full",
     )
+
+
 
     # ============================================
     # Initialize Trainer

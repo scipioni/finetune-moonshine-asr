@@ -252,6 +252,16 @@ tasks:
     cmds:
       - python scripts/inference.py --model ./{{.IT_OUTPUT}}/final --audio {{.FILE}}
 
+  infer-fr-onnx:
+    desc: "Run ONNX inference with French model. Usage: task infer-fr-onnx FILE=audio.wav"
+    cmds:
+      - python scripts/inference.py --model ./deploy/moonshine-fr/onnx_merged --audio {{.FILE}} --onnx
+
+  infer-it-onnx:
+    desc: "Run ONNX inference with Italian model. Usage: task infer-it-onnx FILE=audio.wav"
+    cmds:
+      - python scripts/inference.py --model ./deploy/moonshine-it/onnx_merged --audio {{.FILE}} --onnx
+
   # ─────────────────────────────────────────────
   # ONNX export
   # ─────────────────────────────────────────────
