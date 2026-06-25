@@ -26,6 +26,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from moonshine_ft.utils.preprocessing import normalize_text
+
 import torch
 import numpy as np
 from datasets import load_from_disk, load_dataset
@@ -259,7 +261,9 @@ class MoonshineEvaluator:
 
         # Compute metrics
         print("\nComputing metrics...")
-        metrics = compute_wer(predictions, references)
+        norm_predictions = [normalize_text(p) for p in predictions]
+        norm_references = [normalize_text(r) for r in references]
+        metrics = compute_wer(norm_predictions, norm_references)
 
         # Add timing metrics
         total_audio_duration = sum(durations)
@@ -274,11 +278,15 @@ class MoonshineEvaluator:
             metrics['predictions'] = [
                 {
                     'prediction': pred,
+                    'prediction_normalized': norm_pred,
                     'reference': ref,
+                    'reference_normalized': norm_ref,
                     'duration': dur,
                     'inference_time': inf_time
                 }
-                for pred, ref, dur, inf_time in zip(predictions, references, durations, inference_times)
+                for pred, norm_pred, ref, norm_ref, dur, inf_time in zip(
+                    predictions, norm_predictions, references, norm_references, durations, inference_times
+                )
             ]
 
         return metrics
