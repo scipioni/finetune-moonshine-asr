@@ -18,6 +18,9 @@ vars:
   IT_STRIX_CONFIG: configs/mls_italian_rocm.yaml
   IT_STRIX_OUTPUT: results-moonshine-it-rocm
 
+  # Deploy
+  IT_DEPLOY: deploy/moonshine-it/model_resized
+
 tasks:
 
   # ─────────────────────────────────────────────
@@ -239,6 +242,18 @@ tasks:
       - task: eval-fr
       - task: eval-it
 
+  eval-it-deploy:
+    desc: Evaluate deployed Italian model (deploy/moonshine-it/model_resized) on MLS test set
+    cmds:
+      - >-
+        python scripts/evaluate.py
+        --model ./{{.IT_DEPLOY}}
+        --dataset ./{{.IT_DATA}}
+        --split test
+        --text-column sentence
+        --output ./eval-results-it-deploy.json
+        --save-predictions
+
   # ─────────────────────────────────────────────
   # Inference
   # ─────────────────────────────────────────────
@@ -282,9 +297,9 @@ tasks:
   # ─────────────────────────────────────────────
 
   download-cv-it:
-    desc: "Download Mozilla Common Voice Italian dataset. Usage: task download-cv-it TOKEN=hf_xxxxxx"
+    desc: "Download Mozilla Common Voice Italian dataset."
     cmds:
-      - python scripts/download_common_voice.py --language it --output ./data/cv_italian_split --token {{.TOKEN}}
+      - python scripts/download_common_voice.py --language it --output ./data/cv_italian_split
 
   clean-fr:
     desc: Remove French training outputs and logs
