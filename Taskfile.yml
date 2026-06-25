@@ -281,6 +281,11 @@ tasks:
   # Utilities
   # ─────────────────────────────────────────────
 
+  download-cv-it:
+    desc: "Download Mozilla Common Voice Italian dataset. Usage: task download-cv-it TOKEN=hf_xxxxxx"
+    cmds:
+      - python scripts/download_common_voice.py --language it --output ./data/cv_italian_split --token {{.TOKEN}}
+
   clean-fr:
     desc: Remove French training outputs and logs
     cmds:
