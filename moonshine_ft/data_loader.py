@@ -12,6 +12,7 @@ from datasets import load_dataset, DatasetDict, Dataset, Audio, load_from_disk
 from typing import Optional, Union, Dict, Any
 import pandas as pd
 from pathlib import Path
+from moonshine_ft.utils.preprocessing import normalize_text
 
 
 class MoonshineDataLoader:
@@ -443,7 +444,7 @@ class MoonshineDataLoader:
 
             # Tokenize text (no BOS, add EOS)
             labels = processor.tokenizer(
-                batch[text_column],
+                normalize_text(batch[text_column]),
                 add_special_tokens=False
             ).input_ids
             batch["labels"] = labels + [2]  # Add EOS token
