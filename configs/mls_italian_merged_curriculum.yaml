@@ -1,0 +1,111 @@
+# Configuration for fine-tuning Moonshine on merged Italian datasets (with curriculum learning)
+# Dataset: Merged MLS, Common Voice, and VoxPopuli
+# Duration range: 4-20s
+
+model:
+  name: "UsefulSensors/moonshine-tiny"
+  freeze_encoder: false
+
+dataset:
+  type: "local"
+  path: "data/merged_italian_split"
+
+audio:
+  sampling_rate: 16000
+  max_duration: 20.0
+  min_duration: 4.0
+
+preprocessing:
+  num_proc: 4
+  normalize_audio: true
+  target_rms: 0.075
+
+curriculum:
+  enabled: true
+  phases:
+    - name: "Phase 1: Short Utterances (4-8s)"
+      description: "Foundation training on shorter, clearer utterances"
+      min_duration: 4.0
+      max_duration: 8.0
+      max_words: 12
+      max_steps: 4000
+      learning_rate: 1.0e-5
+      warmup_steps: 500
+      label_smoothing: 0.1
+      repetition_penalty: 1.5
+      num_beams: 3
+      no_repeat_ngram_size: 3
+      target_wer: 25.0
+    - name: "Phase 2: Medium Utterances (4-12s)"
+      description: "Progressive difficulty scaling"
+      min_duration: 4.0
+      max_duration: 12.0
+      max_words: 20
+      max_steps: 4000
+      learning_rate: 1.5e-5
+      warmup_steps: 500
+      label_smoothing: 0.1
+      repetition_penalty: 1.3
+      num_beams: 3
+      no_repeat_ngram_size: 3
+      target_wer: 22.0
+    - name: "Phase 3: Full Dataset (4-20s)"
+      description: "Final convergence on complete dataset"
+      min_duration: 4.0
+      max_duration: 20.0
+      max_words: null
+      max_steps: 8000
+      learning_rate: 3.0e-4
+      warmup_steps: 1000
+      label_smoothing: 0.1
+      repetition_penalty: 1.2
+      num_beams: 5
+      no_repeat_ngram_size: 2
+      target_wer: 20.0
+
+training:
+  output_dir: "./results-moonshine-it-curriculum-merged"
+
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 16
+  gradient_accumulation_steps: 8  # Effective batch size = 8 * 8 = 64
+  gradient_checkpointing: true
+  fp16: false
+  bf16: true  # Set true on NVIDIA Ampere+ (RTX 3000+) or AMD discrete GPU with native BF16
+  fp16_full_eval: false
+  bf16_full_eval: true
+  max_grad_norm: 1.0
+
+  max_steps: 8000
+  torch_compile: false
+
+  optim: "schedule_free_adamw"
+  learning_rate: 3.0e-4
+  lr_scheduler_type: "constant_with_warmup"
+  warmup_steps: 256
+
+  eval_strategy: "steps"
+  eval_steps: 500
+  save_steps: 500
+  logging_steps: 50
+  predict_with_generate: true
+
+  load_best_model_at_end: true
+  metric_for_best_model: "wer"
+  greater_is_better: false
+
+  report_to: ["tensorboard"]
+  logging_dir: "./logs/moonshine-it-curriculum-merged"
+  push_to_hub: false
+  hub_model_id: null
+  hub_strategy: "every_save"
+  hub_token: null
+
+generation:
+  max_new_tokens: 50
+  length_penalty: 1.2
+  do_sample: false
+  early_stopping: true
+  repetition_penalty: 1.3
+  num_beams: 5
+  no_repeat_ngram_size: 2

@@ -123,6 +123,13 @@ tasks:
       - python train.py --config {{.IT_CONFIG}} --phase 2 --resume ./{{.IT_OUTPUT}}-phase1
       - python train.py --config {{.IT_CONFIG}} --phase 3 --resume ./{{.IT_OUTPUT}}-phase2
 
+  train-it-curriculum-merged:
+    desc: Italian curriculum training (3 phases) on merged MLS, Common Voice, and VoxPopuli datasets
+    cmds:
+      - python train.py --config configs/mls_italian_merged_curriculum.yaml --phase 1
+      - python train.py --config configs/mls_italian_merged_curriculum.yaml --phase 2 --resume ./results-moonshine-it-curriculum-merged-phase1
+      - python train.py --config configs/mls_italian_merged_curriculum.yaml --phase 3 --resume ./results-moonshine-it-curriculum-merged-phase2
+
   # ROCm variants — enable experimental aotriton attention kernels
   train-fr-rocm:
     desc: Fine-tune Moonshine on French (ROCm — enables experimental aotriton kernels)
@@ -305,6 +312,11 @@ tasks:
     desc: "Download Facebook VoxPopuli Italian dataset."
     cmds:
       - python scripts/download_voxpopuli.py --language it --output ./data/vp_italian_split
+
+  merge-it-data:
+    desc: "Merge MLS, Common Voice, and VoxPopuli local datasets into a single unified dataset."
+    cmds:
+      - python scripts/merge_datasets.py --output ./data/merged_italian_split
 
   clean-fr:
     desc: Remove French training outputs and logs
