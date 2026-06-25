@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Moonshine ASR Inference Script
@@ -134,8 +135,8 @@ class ManualONNXInference:
 
         # Find ONNX files
         encoder_path = self.model_dir / 'encoder_model.onnx'
-        decoder_path = self.model_dir / 'decoder_model.onnx'
-
+        decoder_path = self.model_dir / "decoder.onnx"
+        
         # Check for alternate names
         if not encoder_path.exists():
             encoder_path = self.model_dir / 'encoder.onnx'
@@ -171,14 +172,20 @@ class ManualONNXInference:
 
         print("✅ Manual ONNX model loaded")
 
-    def encode(self, audio_array: np.ndarray, sampling_rate: int = 16000) -> np.ndarray:
-        """Encode audio to hidden states."""
+    def encode(self, audio_array: np.ndarray, sampling_rate: int = 16000) -> tuple:
+        """Encode audio to hidden states.
+
+        Returns:
+            Tuple of (encoder_hidden_states, encoder_attention_mask)
+            The attention mask is at raw audio resolution for the decoder.
+        """
         inputs = self.processor(
             audio_array,
             sampling_rate=sampling_rate,
             return_tensors="np"
         )
         input_values = inputs.input_values
+        attention_mask = inputs.get('attention_mask', np.ones_like(input_values, dtype=np.int64))
 
         # Get encoder input names
         encoder_inputs = {inp.name: None for inp in self.encoder_session.get_inputs()}
@@ -189,63 +196,68 @@ class ManualONNXInference:
             encoder_inputs['input_features'] = input_values
 
         if 'attention_mask' in encoder_inputs:
-            mask = inputs.get('attention_mask', None)
-            if mask is not None:
-                encoder_inputs['attention_mask'] = mask.astype(np.int64)
+            encoder_inputs['attention_mask'] = attention_mask.astype(np.int64)
 
         # Run encoder
         encoder_outputs = self.encoder_session.run(None, encoder_inputs)
-        return encoder_outputs[0]
+        return encoder_outputs[0], attention_mask.astype(np.int64)
 
-    def decode_greedy(self, encoder_hidden_states: np.ndarray, max_new_tokens: int = 50) -> np.ndarray:
-        """Greedy decoding from encoder hidden states."""
+    def decode_greedy(self, encoder_hidden_states: np.ndarray, encoder_attention_mask: np.ndarray, max_new_tokens: int = 50) -> np.ndarray:
+        batch_size = encoder_hidden_states.shape[0]
+        num_layers = 6
+        num_heads = 8
+        head_dim = 36
+
+        dummy_past_kv = {}
+        for layer in range(num_layers):
+            dummy_past_kv[f'past_key_values.{layer}.decoder.key'] = np.zeros(
+                (batch_size, num_heads, 0, head_dim), dtype=np.float32
+            )
+            dummy_past_kv[f'past_key_values.{layer}.decoder.value'] = np.zeros(
+                (batch_size, num_heads, 0, head_dim), dtype=np.float32
+            )
+            dummy_past_kv[f'past_key_values.{layer}.encoder.key'] = np.zeros(
+                (batch_size, num_heads, 0, head_dim), dtype=np.float32
+            )
+            dummy_past_kv[f'past_key_values.{layer}.encoder.value'] = np.zeros(
+                (batch_size, num_heads, 0, head_dim), dtype=np.float32
+            )
+
         decoder_input_ids = np.array([[self.bos_token_id]], dtype=np.int64)
         generated_tokens = []
 
-        # Get decoder input names
-        decoder_input_names = [inp.name for inp in self.decoder_session.get_inputs()]
-
         for _ in range(max_new_tokens):
-            # Prepare decoder inputs
-            decoder_inputs = {}
-            for name in decoder_input_names:
-                if 'input_ids' in name:
-                    decoder_inputs[name] = decoder_input_ids
-                elif 'encoder_hidden_states' in name or 'encoder_outputs' in name:
-                    decoder_inputs[name] = encoder_hidden_states
-                elif 'encoder_attention_mask' in name:
-                    decoder_inputs[name] = np.ones(
-                        (encoder_hidden_states.shape[0], encoder_hidden_states.shape[1]),
-                        dtype=np.int64
-                    )
 
-            # Run decoder
+            decoder_inputs = {
+                "input_ids": decoder_input_ids,
+                "encoder_hidden_states": encoder_hidden_states,
+                "encoder_attention_mask": encoder_attention_mask,
+                "use_cache_branch": np.array([False], dtype=bool),
+                **dummy_past_kv
+            }
+
             logits = self.decoder_session.run(None, decoder_inputs)[0]
 
-            # Get next token (greedy)
             next_token = np.argmax(logits[:, -1, :], axis=-1)
 
-            # Check for EOS
             if next_token[0] == self.eos_token_id:
                 break
 
             generated_tokens.append(next_token[0])
 
-            # Update decoder input
-            decoder_input_ids = np.concatenate([
-                decoder_input_ids,
-                next_token.reshape(1, 1)
-            ], axis=1)
+            decoder_input_ids = np.concatenate(
+                [decoder_input_ids, next_token.reshape(1, 1)],
+                axis=1
+            )
 
         return np.array([generated_tokens])
-
     def transcribe(
         self,
         audio: Union[np.ndarray, Path, str],
         sampling_rate: int = 16000,
         max_new_tokens: Optional[int] = None,
         **kwargs  # Accept but ignore PyTorch-specific kwargs
-    ) -> Dict:
+        ) -> Dict:
         """
         Transcribe audio using ONNX Runtime.
 
@@ -276,8 +288,8 @@ class ManualONNXInference:
         # Transcribe
         start_time = time.time()
 
-        encoder_hidden_states = self.encode(audio_array, sampling_rate)
-        token_ids = self.decode_greedy(encoder_hidden_states, max_new_tokens)
+        encoder_hidden_states, encoder_attention_mask = self.encode(audio_array, sampling_rate)
+        token_ids = self.decode_greedy(encoder_hidden_states, encoder_attention_mask, max_new_tokens)
         transcription = self.processor.tokenizer.decode(
             token_ids[0],
             skip_special_tokens=True

@@ -1,0 +1,27 @@
+# requirements_moonshine_it.txt
+# Dipendenze per build_moonshine_italian.py
+
+# Core ML
+torch>=2.1
+torchaudio>=2.1
+transformers>=4.40
+datasets>=2.18
+tokenizers>=0.19
+accelerate>=0.28
+
+# Metriche
+evaluate>=0.4
+jiwer>=3.0
+
+# Audio
+soundfile>=0.12
+librosa>=0.10
+
+# Optimizer senza lr schedule (opzionale ma consigliato)
+schedulefree>=1.2
+
+# Per convert_tokenizer.py con SentencePiece (opzionale)
+sentencepiece>=0.1.99
+
+# Monitoring training
+tensorboard>=2.14
