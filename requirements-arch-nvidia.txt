@@ -3,9 +3,7 @@
 # Run `task install-arch-nvidia` to install system packages and these deps in one step.
 #
 # System packages installed by the task (pacman):
-#   python-pytorch-cuda, python-torchvision-cuda, python-numpy, python-pandas, python-soundfile
-#
-# torchaudio is installed from PyPI (see below) — the AUR package lags PyTorch releases.
+#   python-pytorch-cuda, python-torchvision-cuda, python-torchaudio, python-numpy, python-pandas, python-soundfile
 
 # Training & Evaluation
 transformers>=4.35.0
@@ -16,9 +14,8 @@ jiwer>=3.0.0
 tensorboard>=2.14.0
 schedulefree>=1.4.0
 
-# Audio processing (soundfile and numpy come from system; torchaudio from PyPI — AUR package lags PyTorch)
+# Audio processing (soundfile, numpy, and torchaudio come from system)
 librosa>=0.10.0
-torchaudio>=2.10.0
 
 # Data handling
 pyyaml>=6.0

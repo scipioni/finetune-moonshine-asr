@@ -10,10 +10,12 @@
 #   python-pandas             (pacman/extra)  -> pandas
 #   python-soundfile          (pacman/extra)  -> soundfile
 #
-# torchaudio: AUR package version lags PyTorch; installed from PyPI instead (see requirements-arch-nvidia.txt)
+# torchaudio and triton: Excluded from PyPI resolution to use Arch system packages instead.
 torch
 torchvision
+torchaudio
 torchcodec
+triton
 numpy
 pandas
 soundfile

@@ -41,7 +41,7 @@ tasks:
   install-arch-nvidia:
     desc: Install system packages (CUDA) and pip-only dependencies for Arch Linux
     cmds:
-      - sudo pacman -S --needed --noconfirm python-pytorch-cuda python-torchvision-cuda python-numpy python-pandas python-soundfile
+      - sudo pacman -S --needed --noconfirm python-pytorch-cuda python-torchvision-cuda python-torchaudio python-numpy python-pandas python-soundfile
       - uv venv --system-site-packages --python /usr/bin/python .venv
       - uv pip install --python .venv/bin/python --excludes excludes-arch-nvidia.txt -r requirements-arch-nvidia.txt
       - 'echo "Done. Activate the venv with:  source .venv/bin/activate"'
