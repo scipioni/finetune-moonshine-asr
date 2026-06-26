@@ -13,20 +13,20 @@ dataset:
 audio:
   sampling_rate: 16000
   max_duration: 20.0
-  min_duration: 4.0
+  min_duration: 10.0
 
 preprocessing:
-  num_proc: 4
+  num_proc: 8
   normalize_audio: true
   target_rms: 0.075
 
 curriculum:
   enabled: true
   phases:
-    - name: "Phase 1: Short Utterances (4-8s)"
+    - name: "Phase 1: Short Utterances (10-13s, ≤12 words)"
       description: "Foundation training on shorter, clearer utterances"
-      min_duration: 4.0
-      max_duration: 8.0
+      min_duration: 10.0
+      max_duration: 13.0
       max_words: 12
       max_steps: 4000
       learning_rate: 1.0e-5
@@ -36,11 +36,11 @@ curriculum:
       num_beams: 3
       no_repeat_ngram_size: 3
       target_wer: 25.0
-    - name: "Phase 2: Medium Utterances (4-12s)"
+    - name: "Phase 2: Medium Utterances (10-16s, ≤25 words)"
       description: "Progressive difficulty scaling"
-      min_duration: 4.0
-      max_duration: 12.0
-      max_words: 20
+      min_duration: 10.0
+      max_duration: 16.0
+      max_words: 25
       max_steps: 4000
       learning_rate: 1.5e-5
       warmup_steps: 500
@@ -49,9 +49,9 @@ curriculum:
       num_beams: 3
       no_repeat_ngram_size: 3
       target_wer: 22.0
-    - name: "Phase 3: Full Dataset (4-20s)"
+    - name: "Phase 3: Full Dataset (10-20s)"
       description: "Final convergence on complete dataset"
-      min_duration: 4.0
+      min_duration: 10.0
       max_duration: 20.0
       max_words: null
       max_steps: 8000

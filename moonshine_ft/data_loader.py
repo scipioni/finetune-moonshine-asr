@@ -431,36 +431,33 @@ class MoonshineDataLoader:
         Returns:
             Processed dataset with input_values, labels, and duration
         """
-        def prepare_example(batch):
-            # Process audio
-            audio = batch["audio"]
-
-            inputs = processor(
-                audio["array"],
-                sampling_rate=audio["sampling_rate"],
-                return_tensors="pt"
-            )
-            batch["input_values"] = inputs.input_values[0]
-
-            # Tokenize text (no BOS, add EOS)
-            labels = processor.tokenizer(
-                normalize_text(batch[text_column]),
-                add_special_tokens=False
-            ).input_ids
-            batch["labels"] = labels + [2]  # Add EOS token
-
-            # Store audio duration for curriculum filtering and length bucketing
-            batch["duration"] = len(audio["array"]) / audio["sampling_rate"]
-            batch["input_length"] = len(audio["array"])
-
-            return batch
+        def prepare_batch(batch):
+            input_values, labels, durations, input_lengths = [], [], [], []
+            texts = [normalize_text(t) for t in batch[text_column]]
+            tokenized = processor.tokenizer(texts, add_special_tokens=False)
+            for audio, ids in zip(batch["audio"], tokenized.input_ids):
+                arr, sr = audio["array"], audio["sampling_rate"]
+                inp = processor(arr, sampling_rate=sr, return_tensors="pt")
+                input_values.append(inp.input_values[0].numpy())
+                labels.append(ids + [2])
+                durations.append(len(arr) / sr)
+                input_lengths.append(len(arr))
+            return {
+                "input_values": input_values,
+                "labels": labels,
+                "duration": durations,
+                "input_length": input_lengths,
+            }
 
         print("\nPreparing dataset (feature extraction + tokenization)...")
 
+        num_proc = self.config.get('preprocessing', {}).get('num_proc', 4)
         prepared = dataset.map(
-            prepare_example,
+            prepare_batch,
+            batched=True,
+            batch_size=32,
             remove_columns=dataset.column_names,
-            num_proc=self.config.get('preprocessing', {}).get('num_proc', 4)
+            num_proc=num_proc,
         )
 
         print(f"  Processed {len(prepared):,} samples")
@@ -484,21 +481,11 @@ class MoonshineDataLoader:
         Returns:
             Filtered dataset
         """
-        # Determine which duration column exists
         duration_col = 'duration' if 'duration' in dataset.column_names else 'audio_duration'
 
-        def is_valid_duration(duration, audio):
-            # Resolve duration if None by calculating from audio array
-            if duration is None and audio is not None:
-                if 'array' in audio and audio['array'] is not None:
-                    duration = len(audio['array']) / audio['sampling_rate']
-
-            if duration is None:
-                return False
-            return min_duration <= duration <= max_duration
-
-        # Pass both duration_col and audio to ensure full resolution
-        filtered = dataset.filter(is_valid_duration, input_columns=[duration_col, 'audio'])
+        durations = dataset._data.table.column(duration_col).to_pandas()
+        mask = (durations >= min_duration) & (durations <= max_duration)
+        filtered = dataset.select(list(mask[mask].index))
 
         print(f"\nFiltering by duration ({min_duration}s - {max_duration}s):")
         print(f"  Original: {len(dataset):,} samples")

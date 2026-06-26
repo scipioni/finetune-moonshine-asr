@@ -165,30 +165,24 @@ class CurriculumScheduler:
         Returns:
             Filtered dataset
         """
-        def meets_criteria(duration, text, audio):
-            # Resolve duration if None by calculating from audio array
-            if duration is None and audio is not None:
-                if 'array' in audio and audio['array'] is not None:
-                    duration = len(audio['array']) / audio['sampling_rate']
-
-            if duration is None:
-                print(f"[DEBUG] duration is None!")
-                return False
-
-            word_count = len(text.split()) if text else 0
-            meets = (phase.min_duration <= duration <= phase.max_duration) and (phase.max_words is None or word_count <= phase.max_words)
-            if meets:
-                print(f"[DEBUG] MEETS: dur={duration:.2f}s, words={word_count}")
-            return meets
-
-        # Count samples <1 second for warning (paper recommendation)
         total_count = len(dataset)
-        durations_all = [d if d is not None else 5.0 for d in dataset[duration_column]]
-        very_short = sum(1 for d in durations_all if d < 1.0)
+
+        pa_table = dataset._data.table
+
+        # Vectorized column reads via pandas — no audio decoding, nulls become NaN
+        durations = pa_table.column(duration_column).to_pandas()
+        mask = (durations >= phase.min_duration) & (durations <= phase.max_duration)
+
+        if phase.max_words is not None:
+            texts = pa_table.column(text_column).to_pandas()
+            word_counts = texts.str.split().str.len().fillna(0)
+            mask &= word_counts <= phase.max_words
+
+        very_short = int((durations < 1.0).sum())
         very_short_pct = 100 * very_short / total_count if total_count > 0 else 0
 
-        # Use input_columns to avoid decoding audio
-        filtered = dataset.filter(meets_criteria, input_columns=[duration_column, text_column, "audio"])
+        # select() is a lazy index view — no audio data copied, no disk write
+        filtered = dataset.select(list(mask[mask].index))
 
         print(f"\n{phase.name}:")
         print(f"  Duration range: [{phase.min_duration}s, {phase.max_duration}s]")
@@ -207,14 +201,9 @@ class CurriculumScheduler:
 
         # Calculate duration statistics for filtered dataset
         if len(filtered) > 0:
-            durations = [
-                d if d is not None else len(a['array']) / a['sampling_rate']
-                for d, a in zip(filtered[duration_column], filtered["audio"])
-            ]
+            durations = filtered[duration_column]
             avg_duration = sum(durations) / len(durations)
-            min_dur = min(durations)
-            max_dur = max(durations)
-            print(f"  Duration stats: min={min_dur:.1f}s, max={max_dur:.1f}s, avg={avg_duration:.1f}s")
+            print(f"  Duration stats: min={min(durations):.1f}s, max={max(durations):.1f}s, avg={avg_duration:.1f}s")
 
         return filtered
 
